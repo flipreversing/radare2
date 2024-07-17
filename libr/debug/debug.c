@@ -1718,7 +1718,6 @@ R_API int r_debug_child_clone(RDebug *dbg) {
 
 R_API bool r_debug_is_dead(RDebug *dbg) {
 	RDebugPlugin *plugin = R_UNWRAP3 (dbg, current, plugin);
-	R_LOG_INFO ("[r_debug_is_dead]");
 	if (!plugin) {
 		return false;
 	}
