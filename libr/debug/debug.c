@@ -34,7 +34,7 @@ R_API void r_debug_bp_update(RDebug *dbg) {
 	/* update all bp->addr if they are named bps */
 	RBreakpointItem *bp;
 	RListIter *iter;
-	R_LOG_ERROR ("[r_debug_bp_update]");
+	R_LOG_INFO ("[r_debug_bp_update]");
 	r_list_foreach (dbg->bp->bps, iter, bp) {
 		if (bp->expr) {
 			bp->addr = dbg->coreb.numGet (dbg->coreb.core, bp->expr);
@@ -65,7 +65,7 @@ static bool r_debug_bp_hit(RDebug *dbg, RRegItem *pc_ri, ut64 pc, RBreakpointIte
 	/* initialize the output parameter */
 	*pb = NULL;
 
-	R_LOG_INFO ("[r_debug_bp_hit]");
+	R_LOG_INFO ("[r_debug_bp_hit] entry");
 
 	/* if we are tracing, update the tracing data */
 	if (dbg->trace->enabled) {
@@ -100,17 +100,22 @@ static bool r_debug_bp_hit(RDebug *dbg, RRegItem *pc_ri, ut64 pc, RBreakpointIte
 	int pc_off = dbg->bpsize;
 	/* see if we really have a breakpoint here... */
 	if (!dbg->pc_at_bp_set) {
+		R_LOG_INFO ("[r_debug_bp_hit] getting bp at pc - bpsize");
 		b = r_bp_get_at (dbg->bp, pc - dbg->bpsize, dbg->pid);
 		if (!b) { /* we don't. nothing left to do */
 			/* Some targets set pc to breakpoint */
 #if __i386__ || __x86_64__
+			R_LOG_INFO ("[r_debug_bp_hit] getting bp at pc");
 			b = r_bp_get_at (dbg->bp, pc, dbg->pid);
 			if (!b) {
+				R_LOG_INFO ("[r_debug_bp_hit] getting drx at pc");
 				/* handle the case of hw breakpoints - notify the user */
 				int drx_reg_idx = r_debug_drx_get (dbg, pc);
 				if (drx_reg_idx != -1) {
 					R_LOG_INFO ("hit hardware breakpoint %d at: %" PFMT64x,
 						drx_reg_idx, pc);
+				} else {
+					R_LOG_INFO ("[r_debug_bp_hit] no hardware breakpoint found");
 				}
 				/* Couldn't find the break point. Nothing more to do... */
 				return true;
@@ -173,6 +178,8 @@ static bool r_debug_bp_hit(RDebug *dbg, RRegItem *pc_ri, ut64 pc, RBreakpointIte
 
 	/* setup our stage 2 */
 	dbg->reason.bp_addr = b->addr;
+
+	R_LOG_INFO ("[r_debug_bp_hit] software breakpoint hit");
 
 	/* inform the user of what happened */
 	if (dbg->hitinfo) {
@@ -242,8 +249,10 @@ static bool r_debug_recoil(RDebug *dbg, RDebugRecoilMode rc_mode) {
 	/* we have entered recoil! */
 	dbg->recoil_mode = rc_mode;
 
+	R_LOG_INFO ("[r_debug_recoil] calling r_debug_step");
 	/* step over the place with the breakpoint and let the caller resume */
 	if (r_debug_step (dbg, 1) != 1) {
+		R_LOG_INFO ("[r_debug_recoil] r_debug_step failed");
 		return false;
 	}
 
@@ -1250,12 +1259,14 @@ repeat:
 		bp = dbg->session->bp;
 	} else if (plugin && plugin->cont) {
 		/* handle the stage-2 of breakpoints */
+		R_LOG_INFO ("[r_debug_recoil] handle stage-2");
 		if (!r_debug_recoil (dbg, R_DBG_RECOIL_CONTINUE)) {
 			return 0;
 		}
 		/* tell the inferior to go! */
 		ret = plugin->cont (dbg, dbg->pid, dbg->tid, sig);
 		//XXX(jjd): why? //dbg->reason.signum = 0;
+		R_LOG_INFO ("[r_debug_recoil] calling r_debug_wait");
 		reason = r_debug_wait (dbg, &bp);
 	} else {
 		return 0;
