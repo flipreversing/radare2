@@ -34,6 +34,7 @@ R_API void r_debug_bp_update(RDebug *dbg) {
 	/* update all bp->addr if they are named bps */
 	RBreakpointItem *bp;
 	RListIter *iter;
+	R_LOG_ERROR ("[r_debug_bp_update]");
 	r_list_foreach (dbg->bp->bps, iter, bp) {
 		if (bp->expr) {
 			bp->addr = dbg->coreb.numGet (dbg->coreb.core, bp->expr);
@@ -63,6 +64,8 @@ static bool r_debug_bp_hit(RDebug *dbg, RRegItem *pc_ri, ut64 pc, RBreakpointIte
 	RBreakpointItem *b = NULL;
 	/* initialize the output parameter */
 	*pb = NULL;
+
+	R_LOG_ERROR ("[r_debug_bp_hit]");
 
 	/* if we are tracing, update the tracing data */
 	if (dbg->trace->enabled) {
@@ -188,6 +191,7 @@ static bool r_debug_bp_hit(RDebug *dbg, RRegItem *pc_ri, ut64 pc, RBreakpointIte
 
 /* enable all software breakpoints */
 static int r_debug_bps_enable(RDebug *dbg) {
+	R_LOG_ERROR ("[r_debug_bps_enable]");
 	/* restore all sw breakpoints. we are about to step/continue so these need
 	 * to be in place. */
 	if (!r_bp_restore (dbg->bp, true)) {
@@ -211,6 +215,7 @@ static int r_debug_bps_enable(RDebug *dbg) {
  * if the user wants to step, the single step here does the job.
  */
 static bool r_debug_recoil(RDebug *dbg, RDebugRecoilMode rc_mode) {
+	R_LOG_ERROR ("[r_debug_recoil]");
 	/* if bp_addr is not set, we must not have actually hit a breakpoint */
 	if (!dbg->reason.bp_addr) {
 		return r_debug_bps_enable (dbg);
@@ -263,6 +268,8 @@ R_API RBreakpointItem *r_debug_bp_add(RDebug *dbg, ut64 addr, int hw, bool watch
 	char *module_name = module? strdup (module): NULL;
 	RListIter *iter;
 	RDebugMap *map;
+	R_LOG_ERROR ("[r_debug_bp_add]");
+
 	if (!addr && module) {
 		bool detect_module, valid = false;
 		int perm;
@@ -535,6 +542,8 @@ R_API bool r_debug_execute(RDebug *dbg, const ut8 *buf, int len, R_OUT ut64 *ret
 	r_return_val_if_fail (dbg && buf && len > 0, false);
 	ut8 stack_backup[1024];
 
+	R_LOG_ERROR ("[r_debug_execute]");
+
 	if (r_debug_is_dead (dbg)) {
 		R_LOG_WARN ("Child is dead");
 		return false;
@@ -740,6 +749,8 @@ R_API RDebugReasonType r_debug_stop_reason(RDebug *dbg) {
  */
 R_API RDebugReasonType r_debug_wait(RDebug *dbg, RBreakpointItem **bp) {
 	RDebugReasonType reason = R_DEBUG_REASON_ERROR;
+	R_LOG_ERROR ("[r_debug_wait]");
+
 	if (!dbg) {
 		return reason;
 	}
@@ -854,6 +865,7 @@ R_API int r_debug_step_soft(RDebug *dbg) {
 		ut32 r32[2];
 	} memval;
 
+	R_LOG_ERROR ("[r_debug_step_soft]");
 	if (dbg->recoil_mode == R_DBG_RECOIL_NONE) {
 		dbg->recoil_mode = R_DBG_RECOIL_STEP;
 	}
@@ -949,6 +961,7 @@ R_API int r_debug_step_soft(RDebug *dbg) {
 
 R_API int r_debug_step_hard(RDebug *dbg, RBreakpointItem **pb) {
 	RDebugReasonType reason;
+	R_LOG_ERROR ("[r_debug_step_hard]");
 
 	dbg->reason.type = R_DEBUG_REASON_STEP;
 	if (r_debug_is_dead (dbg)) {
@@ -1005,6 +1018,8 @@ R_API int r_debug_step(RDebug *dbg, int steps) {
 	RBreakpointItem *bp = NULL;
 	int ret, steps_taken = 0;
 
+	R_LOG_ERROR ("[r_debug_step]");
+
 	/* who calls this without giving a positive number? */
 	if (steps < 1) {
 		steps = 1;
@@ -1045,7 +1060,7 @@ R_API int r_debug_step(RDebug *dbg, int steps) {
 			dbg->coreb.cmd (dbg->coreb.core, ".e cmd.step @r:PC");
 		}
 		if (!ret) {
-			R_LOG_ERROR ("Stepping failed!");
+			R_LOG_ERROR ("[r_debug_step] Stepping failed!");
 			return steps_taken;
 		}
 		if (dbg->session && dbg->recoil_mode == R_DBG_RECOIL_NONE) {
@@ -1079,6 +1094,8 @@ R_API int r_debug_step_over(RDebug *dbg, int steps) {
 	ut64 buf_pc, pc, ins_size;
 	ut8 buf[DBG_BUF_SIZE];
 	int steps_taken = 0;
+
+	R_LOG_ERROR ("[r_debug_step_over]");
 
 	if (r_debug_is_dead (dbg)) {
 		return steps_taken;
@@ -1185,6 +1202,8 @@ R_API int r_debug_continue_kill(RDebug *dbg, int sig) {
 	RDebugReasonType reason = R_DEBUG_REASON_NONE;
 	int ret = 0;
 	RBreakpointItem *bp = NULL;
+
+	R_LOG_ERROR ("[r_debug_continue_kill]");
 
 	if (!dbg) {
 		return 0;
@@ -1398,6 +1417,8 @@ R_API bool r_debug_continue_until_optype(RDebug *dbg, int type, bool over) {
 	RAnalOp op;
 	ut8 buf[DBG_BUF_SIZE];
 
+	R_LOG_ERROR ("[r_debug_continue_until_optype]");
+
 	if (r_debug_is_dead (dbg)) {
 		return false;
 	}
@@ -1457,6 +1478,7 @@ R_API bool r_debug_continue_until_optype(RDebug *dbg, int type, bool over) {
 }
 
 static int r_debug_continue_until_internal(RDebug *dbg, ut64 addr, bool block) {
+	R_LOG_ERROR ("[r_debug_continue_until_internal]");
 	if (r_debug_is_dead (dbg)) {
 		return false;
 	}
@@ -1499,6 +1521,8 @@ R_API int r_debug_continue_until_nonblock(RDebug *dbg, ut64 addr) {
 R_API bool r_debug_continue_back(RDebug *dbg) {
 	int cnum;
 	bool has_bp = false;
+
+	R_LOG_ERROR ("[r_debug_continue_back]");
 
 	RRegItem *ripc = r_reg_get (dbg->reg, dbg->reg->name[R_REG_NAME_PC], R_REG_TYPE_GPR);
 	RVector *vreg = ht_up_find (dbg->session->registers, ripc->offset | (ripc->arena << 16), NULL);
@@ -1567,6 +1591,8 @@ static int show_syscall(RDebug *dbg, const char *sysreg) {
 R_API int r_debug_continue_syscalls(RDebug *dbg, int *sc, int n_sc) {
 	r_return_val_if_fail (dbg, false);
 	int i, err, reg;
+	R_LOG_ERROR ("[r_debug_continue_syscalls]");
+
 	if (!dbg->current || r_debug_is_dead (dbg)) {
 		return -1;
 	}
@@ -1654,6 +1680,7 @@ R_API bool r_debug_contsc(RDebug *dbg, int num) {
 }
 
 R_API bool r_debug_kill(RDebug *dbg, int pid, int tid, int sig) {
+	R_LOG_ERROR ("[r_debug_kill]");
 	if (r_debug_is_dead (dbg)) {
 		return false;
 	}
@@ -1691,6 +1718,7 @@ R_API int r_debug_child_clone(RDebug *dbg) {
 
 R_API bool r_debug_is_dead(RDebug *dbg) {
 	RDebugPlugin *plugin = R_UNWRAP3 (dbg, current, plugin);
+	R_LOG_ERROR ("[r_debug_is_dead]");
 	if (!plugin) {
 		return false;
 	}
@@ -1745,6 +1773,7 @@ R_API int r_debug_drx_unset(RDebug *dbg, int idx) {
 }
 
 R_API ut64 r_debug_get_baddr(RDebug *dbg, const char *file) {
+	R_LOG_ERROR ("[r_debug_get_baddr]");
 	if (!dbg || !dbg->iob.io || !dbg->iob.io->desc) {
 		return 0LL;
 	}
@@ -1812,6 +1841,9 @@ R_API int r_debug_cmd(RDebug *dbg, const char *s) {
 R_API void r_debug_bp_rebase(RDebug *dbg, ut64 old_base, ut64 new_base) {
 	RBreakpointItem *bp;
 	RListIter *iter;
+	R_LOG_ERROR ("[r_debug_bp_rebase]");
+
+
 	ut64 diff = new_base - old_base;
 	// update bp->baddr
 	dbg->bp->baddr = new_base;
