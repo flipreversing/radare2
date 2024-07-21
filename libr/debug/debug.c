@@ -45,6 +45,7 @@ R_API void r_debug_bp_update(RDebug *dbg) {
 R_API int r_debug_drx_get(RDebug *dbg, ut64 addr) {
 	RDebugPlugin *plugin = R_UNWRAP3 (dbg, current, plugin);
 	if (plugin && plugin->drx) {
+		// TODO: Add dbg->pid, and add this callback to hyperflip
 		return plugin->drx (dbg, 0, addr, 0, 0, 0, DRX_API_GET_BP);
 	}
 	return -1;
@@ -222,7 +223,8 @@ static int r_debug_bps_enable(RDebug *dbg) {
  * if the user wants to step, the single step here does the job.
  */
 static bool r_debug_recoil(RDebug *dbg, RDebugRecoilMode rc_mode) {
-	R_LOG_INFO ("[r_debug_recoil]");
+	R_LOG_INFO ("[r_debug_recoil] entry");
+
 	/* if bp_addr is not set, we must not have actually hit a breakpoint */
 	if (!dbg->reason.bp_addr) {
 		return r_debug_bps_enable (dbg);
@@ -1027,7 +1029,7 @@ R_API int r_debug_step(RDebug *dbg, int steps) {
 	RBreakpointItem *bp = NULL;
 	int ret, steps_taken = 0;
 
-	R_LOG_INFO ("[r_debug_step]");
+	R_LOG_INFO ("[r_debug_step] entry");
 
 	/* who calls this without giving a positive number? */
 	if (steps < 1) {
@@ -1260,6 +1262,7 @@ repeat:
 	} else if (plugin && plugin->cont) {
 		/* handle the stage-2 of breakpoints */
 		R_LOG_INFO ("[r_debug_recoil] handle stage-2");
+		// TODO: If the hardware breakpoint has been removed, we can avoid calling this
 		if (!r_debug_recoil (dbg, R_DBG_RECOIL_CONTINUE)) {
 			return 0;
 		}
